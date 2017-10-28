@@ -188,30 +188,30 @@ def loadTmpDir(submissiondir, assndir, tmpdir, outputdir):
             print(f"""Marking {submissions[f]}:
 Student {idx+1} / {len(details)}
 Mark: {score} ({correct} / {total})""")
-            idx, cmd = selectItems(options)
-            if idx == 0:
+            cidx, cmd = selectItems(options)
+            if cidx == 0:
                 break
-            elif idx == 1: # Comment on file
+            elif cidx == 1: # Comment on file
                 editFile(os.path.abspath("./comments.txt"))
                 continue
-            elif idx == 2: # Change grade
+            elif cidx == 2: # Change grade
                 score = round(float(input("New Grade: ")), 2)
                 continue
-            elif idx == 3:
+            elif cidx == 3:
                 viewData(compile_msg)
-            elif idx == 4:
+            elif cidx == 4:
                 viewData(output)
-            elif idx == 5:
+            elif cidx == 5:
                 viewFile(os.path.abspath("./comments.txt"))
-            elif idx == 6:
+            elif cidx == 6:
                 appendToFile(os.path.abspath("./comments.txt"),
                         '\n'.join(["\n<pre>","=== [Compiler Output] =========",
                             compile_msg, "</pre>"]))
-            elif idx == 7:
+            elif cidx == 7:
                 appendToFile(os.path.abspath("./comments.txt"),
                         '\n'.join(["\n<pre>", "=== [Test Output] =============",
                             output, "</pre>"]) )
-            elif idx == 8:
+            elif cidx == 8:
                 submittedFiles = getFiles(submission_path)
                 if len(submittedFiles) > 1:
                     _, fname = selectItems(submittedFiles)
@@ -219,7 +219,7 @@ Mark: {score} ({correct} / {total})""")
                     fname = submittedFiles[0]
                 viewFile(os.path.abspath("./" + fname))
             else:
-                print(idx, cmd)
+                print(cidx, cmd)
         # Once everything is hunky dory, put away their mark and move on
         details[f][-1] = score
 
