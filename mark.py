@@ -235,7 +235,7 @@ Mark: {score} ({correct} / {total})""")
         removeFiles(tmpdir, skipdirs=False)
     os.chdir(cwd)
     # Write grades to grade file
-    with open(os.path.join(outputdir, "grades.csv"), "w") as outputgrades:
+    with open(out_gradefname, "w") as outputgrades:
         csv_writer = csv.writer(outputgrades, dialect='unix')
         [csv_writer.writerow(el) for el in header]
         [csv_writer.writerow(details[stud]) for stud in order]
