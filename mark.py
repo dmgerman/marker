@@ -271,14 +271,11 @@ def mark():
     """
     test_ret = subprocess.run(["make", "test"], encoding='utf-8',
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
     output = test_ret.stdout
     errors = test_ret.stderr
-
     lines = output.split('\n')
 
     # find the line with the info we are looking for
-
     i = 0
     for idx, l in enumerate(lines):
         if "% tests passed," in l:
@@ -309,7 +306,6 @@ def main():
     ap.add_argument('-o', '--output', type=str, default='./output',
             help="Directory where marked output is stored.")
     # TODO: Add zip functionality
-
 
     args=ap.parse_args()
     args.submissions = os.path.abspath(args.submissions)
