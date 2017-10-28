@@ -205,11 +205,11 @@ Mark: {score} ({correct} / {total})""")
                 viewFile(os.path.abspath("./comments.txt"))
             elif idx == 6:
                 appendToFile(os.path.abspath("./comments.txt"),
-                        '\n'.join(["<pre>","\n=== [Compiler Output] =========",
+                        '\n'.join(["\n<pre>","=== [Compiler Output] =========",
                             compile_msg, "</pre>"]))
             elif idx == 7:
                 appendToFile(os.path.abspath("./comments.txt"),
-                        '\n'.join(["<pre>", "\n=== [Test Output] =============",
+                        '\n'.join(["\n<pre>", "=== [Test Output] =============",
                             output, "</pre>"]) )
             elif idx == 8:
                 submittedFiles = getFiles(submission_path)
