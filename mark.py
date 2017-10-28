@@ -136,15 +136,27 @@ def loadTmpDir(submissiondir, assndir, tmpdir, outputdir):
         details = {stud[1]: stud for stud in l[3:]}
     submissions = {username_expr.search(p).groups()[0]: p for p in os.listdir(submissiondir) if username_expr.search(p)}
     assert len(details) == len(submissions) # If these don't match, panic
-
-
     cwd = os.getcwd() # Store this so we can go back to it later
-
     # And here we go with actually driving this stupid boat
-
     for idx, f in enumerate(details):
         submission_path = os.path.join(submissiondir, submissions[f], "Submission attachment(s)")
         output_path = os.path.join(outputdir, submissions[f])
+        # If it has already been marked, show the marks and copy the comments file
+        if details[f][-1]:
+            if os.path.isfile(os.path.join(submissiondir, submissions[f], 'comments.txt')):
+                shutil.copy(os.path.join(submissiondir, submissions[f], 'comments.txt'), tmpdir)
+            resp = input(f"{f}[{details[f][-1]}] already marked: Remark? [y/N]:")
+            if resp.lower() != 'y':
+                # Copy comment file
+                if not os.path.isfile(os.path.abspath("./comments.txt")):
+                    with open(os.path.abspath("./comments.txt"), 'w'):
+                        pass # Just create it and leave
+                if not os.path.isdir(output_path):
+                    os.mkdir(output_path)
+                shutil.copy(os.path.abspath("./comments.txt"),
+                        os.path.join(output_path, "comments.txt"))
+                continue
+
         copyContents(submission_path, tmpdir)
         copyContents(assndir, tmpdir)  # Will overwrite anything already there
         if not os.path.isdir(os.path.join(tmpdir, 'build')):
