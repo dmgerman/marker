@@ -6,12 +6,13 @@
 # (https://github.com/etcwilde/marker)
 
 import argparse
+import csv
 import glob
 import logging
 from os import listdir
 from os import popen
 from os.path import abspath, isdir, join
-from re import sub
+from re import findall, search, sub
 from shutil import copyfile
 import subprocess as sp
 from sys import exit
@@ -28,12 +29,88 @@ def checkCompilation(filename):
     else:
         return (True, output.split('\n'))
 
-def checkTests(filename, testFiles):
+def checkTests(dirname, testFiles):
     """
     Checks if the provided script passes the tests.
     """
-    print(filename)
+    tests = []
+    testResults = dict()
+    # Copy over test file(s)
+    for testFile in testFiles:
+        testFileName = search('[\w\-]*\.sml', testFile).group(0)
+        testFileName = join(dirname, testFileName)
+        copyfile(testFile, testFileName)
+        tests.append(testFileName)
+    # Run tests and save output
+    for test in tests:
+        command = "cd %s; sml < %s" % (dirname, test)
+        output = popen(command).read()
+        testName = search('[\w\-]*\.sml', test).group(0)
+        if 'error' in output.lower():
+            testResults[testName] = (False, output.split('\n'))
+        else:
+            testResults[testName] = (True, output.split('\n'))
+    return testResults
 
+def calculateGrade(compResults, testResults):
+    # The program does not compile or the tests didn't run
+    if not compResults[0] or testResults is None:
+        return (0, 0, 0.0)
+    # The program compiles and the tests ran so we check them
+    grade = 0
+    total = 0
+    for testSuite in testResults.keys():
+        testOutput = testResults[testSuite][1]
+        for line in testOutput:
+            if not line:
+                continue
+            if line.startswith('**'):
+                testStatus = search('[0-9]+ out of [0-9]+',
+                                    line.strip()).group(0)
+                numbers = findall('[0-9]+', testStatus)
+                grade += int(numbers[0])
+                total += int(numbers[1])
+    if grade == 0 and total == 0:
+        total = 1
+    return (grade, total, (grade / total))
+
+def writeSubmissionReport(outputDir, submitter, compResults, testResults):
+    # Calculate grade
+    grade = calculateGrade(compResults, testResults)
+    # Open file
+    with open(join(outputDir, submitter + '.md'), 'w') as report:
+        submitterReadable = submitter.replace('_', ', ')
+        report.write("# %s Submission Report\n" % submitterReadable)
+        report.write('\n')
+        report.write('### Summary:\n')
+        report.write('\n')
+        report.write("- Program Compiled: %s\n" % str(compResults[0]))
+        report.write("- Tests Passed: %d\n" % grade[0])
+        report.write("- Tests Failed: %d\n" % (grade[1] - grade[0]))
+        report.write("- Total Tests: %d\n" % grade[1])
+        report.write("- Overall Grade: %.2f%%\n" % (grade[2] * 100))
+        report.write('\n')
+        report.write('### Compilation Output:\n')
+        report.write('\n')
+        report.write('```\n')
+        for line in compResults[1]:
+            if line:
+                report.write("%s\n" % line)
+        report.write('```\n')
+        report.write('\n')
+        if compResults[0]:
+            report.write('### Test Output:\n')
+            report.write('\n')
+            report.write('```\n')
+            for suite in testResults.keys():
+                report.write('=====START SUITE=====\n')
+                for line in testResults[suite][1]:
+                    if line:
+                        report.write("%s\n" % line)
+                report.write('=====END SUITE=====\n')
+            report.write('```\n')
+            report.write('\n')
+        
 def listSubSMLFiles(submissionDir):
     subsInit = listdir(submissionDir)
     studentSubs = dict()
@@ -46,7 +123,7 @@ def listSubSMLFiles(submissionDir):
 
 def listTestSMLFiles(testDir):
     testsInit = listdir(testDir)
-    return [join(testDir, x) for x in testsInit]    
+    return [join(testDir, x) for x in testsInit]
 
 def main():
     """
@@ -81,6 +158,11 @@ def main():
         exit(1)
     if not isdir(args.output):
         logger.fatal('The output directory provided does not exist.')
+        exit(1)
+
+    logger.info("Submission directory is: %s" % args.submissions)
+    logger.info("Test directory is: %s" % args.tests)
+    logger.info("Output directory is: %s" % args.output)
         
     # Loop over submissions and test them
     submissions = listSubSMLFiles(args.submissions)
@@ -93,10 +175,22 @@ def main():
         newTarget = join(tempDir, 'hw1.sml')
         copyfile(submissions[key], newTarget)
         compResult = checkCompilation(newTarget)
-        testResult = checkTests(tempDir, tests)
-        break
-    
-        
-        
+        testResult = None
+        if compResult[0]:
+            testResult = checkTests(tempDir, tests)
+        else:
+            logger.info(">> Submission for %s did not compile" % newName)
+        # Write individual submission report
+        writeSubmissionReport(args.output, newName, compResult, testResult)
+        grades = calculateGrade(compResult, testResult)
+        logger.info(">> %s scored %.1f" % (newName, (grades[2] * 100)))
+        # Add submitter final grade to grade list
+        with open(join(args.output, 'grades.csv'), 'a') as gradesFile:
+            writer = csv.writer(gradesFile, delimiter=',', quotechar='"')
+            writer.writerow([newName, str(grades[2] * 100)])
+        logger.info(">> %s data added to grade list" % newName)
+    logger.info("Grade list written to: %s" % join(args.output, 'grades.csv'))
+
+
 if __name__ == "__main__":
     main()
