@@ -64,10 +64,11 @@ def calculateGrade(compResults, testResults):
         for line in testOutput:
             if not line:
                 continue
-            if line.startswith('**'):
-                testStatus = search('[0-9]+ out of [0-9]+',
-                                    line.strip()).group(0)
-                numbers = findall('[0-9]+', testStatus)
+            testStatus = search('[0-9]+ out of [0-9]+',
+                                line.strip())
+            if testStatus is not None:
+                testNumbers = testStatus.group(0)
+                numbers = findall('[0-9]+', testNumbers)
                 grade += int(numbers[0])
                 total += int(numbers[1])
     if grade == 0 and total == 0:
@@ -172,7 +173,8 @@ def main():
         newName = key.replace(', ', '_')
         newName = sub(r'\(.*\)', '', newName)
         logger.info("Processing submission for: %s" % newName)
-        newTarget = join(tempDir, 'hw1.sml')
+        subFile = search('[\w\-]*\.sml', submissions[key]).group(0)
+        newTarget = join(tempDir, subFile)
         copyfile(submissions[key], newTarget)
         compResult = checkCompilation(newTarget)
         testResult = None
