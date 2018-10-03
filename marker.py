@@ -64,6 +64,8 @@ def calculateGrade(compResults, testResults):
         for line in testOutput:
             if not line:
                 continue
+            if 'overall' in line.strip().lower():
+                break
             testStatus = search('[0-9]+ out of [0-9]+',
                                 line.strip())
             if testStatus is not None:
