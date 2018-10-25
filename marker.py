@@ -52,13 +52,13 @@ def checkTests(dirname, testFiles):
             testResults[testName] = (True, output.split('\n'))
     return testResults
 
-def calculateGrade(compResults, testResults):
+def calculateGrade(compResults, testResults, totalTests):
     # The program does not compile or the tests didn't run
     if not compResults[0] or testResults is None:
         return (0, 0, 0.0)
     # The program compiles and the tests ran so we check them
     grade = 0
-    total = 0
+    total = totalTests
     for testSuite in testResults.keys():
         testOutput = testResults[testSuite][1]
         for line in testOutput:
@@ -66,20 +66,19 @@ def calculateGrade(compResults, testResults):
                 continue
             if 'overall' in line.strip().lower():
                 break
-            testStatus = search('[0-9]+ out of [0-9]+',
-                                line.strip())
+            testStatus = search('[0-9]+ out of [0-9]+.*', line.strip())
             if testStatus is not None:
                 testNumbers = testStatus.group(0)
                 numbers = findall('[0-9]+', testNumbers)
-                grade += int(numbers[0])
-                total += int(numbers[1])
-    if grade == 0 and total == 0:
-        total = 1
+                if line.strip().lower().endswith('failed'):
+                    grade += int(numbers[1]) - int(numbers[0])
+                else:
+                    grade += int(numbers[0])
     return (grade, total, (grade / total))
 
-def writeSubmissionReport(outputDir, submitter, compResults, testResults):
+def writeSubmissionReport(outputDir, submitter, compResults, testResults, totalTests):
     # Calculate grade
-    grade = calculateGrade(compResults, testResults)
+    grade = calculateGrade(compResults, testResults, totalTests)
     # Open file
     with open(join(outputDir, submitter + '.md'), 'w') as report:
         submitterReadable = submitter.replace('_', ', ')
@@ -113,7 +112,7 @@ def writeSubmissionReport(outputDir, submitter, compResults, testResults):
                 report.write('=====END SUITE=====\n')
             report.write('```\n')
             report.write('\n')
-        
+
 def listSubSMLFiles(submissionDir):
     subsInit = listdir(submissionDir)
     studentSubs = dict()
@@ -132,12 +131,12 @@ def main():
     """
     The script's main function.
     """
-    
+
     # Set up logger
     logger = logging.getLogger('sml-marker')
     logging.basicConfig(level=logging.INFO)
     logger.info('Logger calibrated.')
-    
+
     # Get inputs
     parser = argparse.ArgumentParser()
     parser.add_argument('-s', '--submissions', type=str, required=True,
@@ -146,6 +145,8 @@ def main():
                         help='Directory containing assigment tests.')
     parser.add_argument('-o', '--output', type=str, required=True,
                         help='Directory where marking output is stored')
+    parser.add_argument('-l', '--total', type=int, required=True,
+                        help='The total number of tests that will run')
 
     args = parser.parse_args()
     args.submissions = abspath(args.submissions)
@@ -166,7 +167,7 @@ def main():
     logger.info("Submission directory is: %s" % args.submissions)
     logger.info("Test directory is: %s" % args.tests)
     logger.info("Output directory is: %s" % args.output)
-        
+
     # Loop over submissions and test them
     submissions = listSubSMLFiles(args.submissions)
     tests = listTestSMLFiles(args.tests)
@@ -185,8 +186,9 @@ def main():
         else:
             logger.info(">> Submission for %s did not compile" % newName)
         # Write individual submission report
-        writeSubmissionReport(args.output, newName, compResult, testResult)
-        grades = calculateGrade(compResult, testResult)
+        writeSubmissionReport(args.output, newName, compResult, testResult, args.total)
+        grades = calculateGrade(compResult, testResult, args.total)
+        logger.info(">> %s passed %d tests of %d." % (newName, grades[0], args.total))
         logger.info(">> %s scored %.1f" % (newName, (grades[2] * 100)))
         # Add submitter final grade to grade list
         with open(join(args.output, 'grades.csv'), 'a') as gradesFile:
