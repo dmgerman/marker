@@ -2,7 +2,7 @@
 
 # Omar Elazhary (c) 2018
 
-# A variant of Evan's marking script of doom for SML
+# A variant of Evan's marking script of doom for Racket
 # (https://github.com/etcwilde/marker)
 
 import argparse
@@ -20,11 +20,11 @@ from tempfile import mkdtemp
 
 def checkCompilation(filename):
     """
-    Checks if the provided script compile via sml.
+    Checks if the provided script compile via racket.
     """
-    command = "sml < %s" % filename
+    command = "racket < %s 2>&1" % filename
     output = popen(command).read()
-    if 'error' in output.lower():
+    if '> > > > > > > > --------------------' in output.lower():
         return (False, output.split('\n'))
     else:
         return (True, output.split('\n'))
@@ -37,16 +37,16 @@ def checkTests(dirname, testFiles):
     testResults = dict()
     # Copy over test file(s)
     for testFile in testFiles:
-        testFileName = search('[\w\-]*\.sml', testFile).group(0)
+        testFileName = search('[\w\-]*\.rkt', testFile).group(0)
         testFileName = join(dirname, testFileName)
         copyfile(testFile, testFileName)
         tests.append(testFileName)
     # Run tests and save output
     for test in tests:
-        command = "cd %s; sml < %s" % (dirname, test)
+        command = "cd %s; racket < %s 2>&1" % (dirname, test)
         output = popen(command).read()
-        testName = search('[\w\-]*\.sml', test).group(0)
-        if 'error' in output.lower():
+        testName = search('[\w\-]*\.rkt', test).group(0)
+        if output.lower().count('failure') > 1:
             testResults[testName] = (False, output.split('\n'))
         else:
             testResults[testName] = (True, output.split('\n'))
@@ -64,16 +64,11 @@ def calculateGrade(compResults, testResults, totalTests):
         for line in testOutput:
             if not line:
                 continue
-            if 'overall' in line.strip().lower():
-                break
-            testStatus = search('[0-9]+ out of [0-9]+.*', line.strip())
+            testStatus = search('[0-9]+ success\(es\)', line.strip())
             if testStatus is not None:
                 testNumbers = testStatus.group(0)
-                numbers = findall('[0-9]+', testNumbers)
-                if line.strip().lower().endswith('failed'):
-                    grade += int(numbers[1]) - int(numbers[0])
-                else:
-                    grade += int(numbers[0])
+                number = findall('[0-9]+', testNumbers)[0]
+                grade += int(number)
     return (grade, total, (grade / total))
 
 def writeSubmissionReport(outputDir, submitter, compResults, testResults, totalTests):
@@ -86,7 +81,6 @@ def writeSubmissionReport(outputDir, submitter, compResults, testResults, totalT
         report.write('\n')
         report.write('### Summary:\n')
         report.write('\n')
-        report.write("- Program Compiled: %s\n" % str(compResults[0]))
         report.write("- Tests Passed: %d\n" % grade[0])
         report.write("- Tests Failed: %d\n" % (grade[1] - grade[0]))
         report.write("- Total Tests: %d\n" % grade[1])
@@ -113,17 +107,17 @@ def writeSubmissionReport(outputDir, submitter, compResults, testResults, totalT
             report.write('```\n')
             report.write('\n')
 
-def listSubSMLFiles(submissionDir):
+def listSubRKTFiles(submissionDir):
     subsInit = listdir(submissionDir)
     studentSubs = dict()
     for directoryRaw in subsInit:
         directory = join(submissionDir, directoryRaw)
-        searchString = join(directory, '**', '*.sml')
+        searchString = join(directory, '**', '*.rkt')
         for filename in glob.iglob(searchString, recursive=True):
             studentSubs[directoryRaw] = filename
     return studentSubs
 
-def listTestSMLFiles(testDir):
+def listTestRKTFiles(testDir):
     testsInit = listdir(testDir)
     return [join(testDir, x) for x in testsInit]
 
@@ -133,7 +127,7 @@ def main():
     """
 
     # Set up logger
-    logger = logging.getLogger('sml-marker')
+    logger = logging.getLogger('rkt-marker')
     logging.basicConfig(level=logging.INFO)
     logger.info('Logger calibrated.')
 
@@ -169,14 +163,14 @@ def main():
     logger.info("Output directory is: %s" % args.output)
 
     # Loop over submissions and test them
-    submissions = listSubSMLFiles(args.submissions)
-    tests = listTestSMLFiles(args.tests)
+    submissions = listSubRKTFiles(args.submissions)
+    tests = listTestRKTFiles(args.tests)
     for key in submissions.keys():
         tempDir = mkdtemp(dir='/tmp')
         newName = key.replace(', ', '_')
         newName = sub(r'\(.*\)', '', newName)
         logger.info("Processing submission for: %s" % newName)
-        subFile = search('[\w\-]*\.sml', submissions[key]).group(0)
+        subFile = search('[\w\-]*\.rkt', submissions[key]).group(0)
         newTarget = join(tempDir, subFile)
         copyfile(submissions[key], newTarget)
         compResult = checkCompilation(newTarget)
